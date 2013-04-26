@@ -23,19 +23,29 @@ class Camera():
         return tmp
 
     def load_config(self, path):
+        """
+        read a config file as written by stemmer imaging for example
+        """
         f = open(path)
         for line in f:
-            name, val = line.split()
-            name = name.strip()
-            val = val.strip()
-            self.set_feature(name, val)
+            if line.startswith("#"):
+                continue
+            else:
+                name, val = line.split()
+                name = name.strip()
+                val = val.strip()
+                print("Config file: Setting {} to {} ".format( name, val))
+                try:
+                    self.set_feature(name, val)
+                except Exception as ex:
+                    print(ex)
         f.close()
 
     def get_feature_type(self, name):
         genicam = self.dev.get_genicam()
         node = genicam.get_node(name)
         if not node:
-            raise AravisException("Feature {} does not seem tp exist in camera".format(name))
+            raise AravisException("Feature {} does not seem to exist in camera".format(name))
         return node.get_node_name()
 
     def get_feature(self, name):
@@ -46,6 +56,8 @@ class Camera():
             return self.dev.get_integer_feature_value(name)
         elif ntype == "Float":
             return self.dev.get_float_feature_value(name)
+        elif ntype == "Boolean":
+            return self.dev.get_integer_feature_value(name)
         else:
             print("Feature type not implemented: ", ntype)
 
@@ -54,12 +66,16 @@ class Camera():
         if ntype in ( "String", "Enumeration"):
             return self.dev.set_string_feature_value(name, val)
         elif ntype == "Integer":
-            return self.dev.set_integer_feature_value(name, val)
+            return self.dev.set_integer_feature_value(name, int(val))
         elif ntype == "Float":
-            return self.dev.set_float_feature_value(name, val)
+            return self.dev.set_float_feature_value(name, float(val))
+        elif ntype == "Boolean":
+            return self.dev.set_integer_feature_value(name, int(val))
         else:
             print("Feature type not implemented: ", ntype)
 
+    def get_genicam(self):
+        return self.dev.get_genicam_xml()
 
     def get_feature_vals(self, name):
         """
@@ -86,7 +102,8 @@ class Camera():
         """
         return last frame. Wait if no frame available
         """
-        return self.stream.try_pop_array()
+        buf =  self.stream.try_pop_buffer()
+        return self._array_from_buffer(buf)
 
     def get_frame(self):
         """
@@ -94,24 +111,18 @@ class Camera():
         """
         return self.stream.pop_array()
 
-
     def _array_from_buffer(self, buf):
         if not buf:
             return None
-        #im = np.ctypeslib.as_array(buf.contents.data, (buf.contents.height, buf.contents.width))
-        b = self._buf_from_memory(buf.contents.data, buf.contents.size*8)
-        if self.pixel_format == "Mono16":
+        if self.current_pixel_format == "Mono16":
             pixelformat = np.uint16
         else:
             pixelformat = np.uint8
-        im = np.frombuffer(b, dtype=pixelformat, count=buf.contents.height * buf.contents.width)
-        im.shape = (buf.contents.width, buf.contents.height) 
-        im = im.copy()
+        #im = np.frombuffer(buf, dtype=pixelformat, count=buf.contents.height * buf.contents.width)
+        #im.shape = (buf.contents.width, buf.contents.height) 
+        #im = im.copy()
         self.push_buffer(buf)
         return im
-
-
-
 
     def trigger(self):
         """
@@ -126,25 +137,24 @@ class Camera():
         return self.__str__()
     
     def start_acquisition(self):
-        self.stream.pixel_format = self.get_string_feature("PixelFormat") #FIXME: should read the aravis cache, if possible
-        self._ar.dll.arv_camera_start_acquisition(self._handle)
+        self._current_pixel_format = self.get_feature("PixelFormat") 
+        self.cam.start_acquisition()
 
     def start_acquisition_trigger(self):
-        self.set_string_feature("AcquisitionMode", "Continuous") #no acquisition limits
-        self.set_string_feature("TriggerSource", "Software") #wait for trigger t acquire image
-        self.set_string_feature("TriggerMode", "On") #Not documented but necesary
+        self.set_feature("AcquisitionMode", "Continuous") #no acquisition limits
+        self.set_feature("TriggerSource", "Software") #wait for trigger t acquire image
+        self.set_feature("TriggerMode", "On") #Not documented but necesary
         self.start_acquisition()
 
     def start_acquisition_continuous(self):
-        self.set_string_feature("AcquisitionMode", "Continuous") #no acquisition limits
-        self.set_string_feature("TriggerSource", "Freerun") #as fast as possible
+        self.set_feature("AcquisitionMode", "Continuous") #no acquisition limits
+        self.set_feature("TriggerSource", "Freerun") #as fast as possible
         #self.set_string_feature("TriggerSource", "FixedRate") 
-        self.set_string_feature("TriggerMode", "On") #Not documented but necesary
+        self.set_feature("TriggerMode", "On") #Not documented but necesary
         self.start_acquisition()
 
-
     def stop_acquisition(self):
-        self._ar.dll.arv_camera_stop_acquisition(self._handle)
+        self.cam.stop_acquisition(self._handle)
 
 
 
@@ -161,8 +171,8 @@ def get_device_ids():
 
 
 if __name__ == "__main__":
-    #cam = ar.get_camera("Prosilica-02-2130A-06106")
-    cam = Camera("AT-Automation Technology GmbH-20805103")
+    cam = Camera("Prosilica-02-2110A-06145")
+    #cam = Camera("AT-Automation Technology GmbH-20805103")
     #x, y, width, height = cam.get_region()
     print("Camera model: ", cam.get_model_name())
     print("Vendor Name: ", cam.get_vendor_name())

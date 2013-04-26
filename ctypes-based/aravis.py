@@ -171,6 +171,7 @@ class Stream(object):
         self._ar.g.g_object_set(self.stream, "packet-timeout", val*1000)
  
     def push_new_buffer(self, size):
+        print("new buffer", size)
         self._ar.dll.arv_stream_push_buffer(self.stream, self.new_buffer(size))
 
     def push_buffer(self, buf):
@@ -211,9 +212,13 @@ class Stream(object):
             pixelformat = np.uint8
         im = np.frombuffer(b, dtype=pixelformat, count=buf.contents.height * buf.contents.width)
         im.shape = (buf.contents.width, buf.contents.height) 
-        im = im.copy()
+        print im
+        print im.shape
+        im2 = im.copy()
+        del(b)
+        del(im)
         self.push_buffer(buf)
-        return im
+        return im2
 
     def try_pop_array(self):
         buf = self.try_pop_buffer()
@@ -246,13 +251,10 @@ class Device(object):
         size = c_size_t(1024)
         return self._ar.dll.arv_device_get_genicam_xml(self._dev, byref(size))
 
-    #def get_feature(self):
-        ##FIXME broken should return correct struct
-        #self._ar.dll.arv_device_get_feature.restype = c_char_p
-        #return self._ar.dll.arv_device_get_feature(self._dev)
-    def get_feature(self, name):
-        self._ar.dll.arv_device_get_genicam()
-        self._ar.dll
+    def get_feature(self):
+        #FIXME broken should return correct struct
+        self._ar.dll.arv_device_get_feature.restype = c_char_p
+        return self._ar.dll.arv_device_get_feature(self._dev)
 
     def get_string_feature(self, name):
         self._ar.dll.arv_device_get_string_feature_value.restype = c_char_p
@@ -335,8 +337,6 @@ class Device(object):
         return res
 
 
-
-
 class Camera(Device):
     """
     helper methods to communicate with a genicam camera
@@ -399,6 +399,9 @@ class Camera(Device):
         height = c_int()
         self._ar.dll.arv_camera_get_region(self._handle, byref(x), byref(y), byref(width), byref(height))
         return x.value, y.value, width.value, height.value
+
+    def set_region(self, x, y, width, height):
+        self._ar.dll.arv_camera_set_region(self._handle, x, y, width, height)
    
     def get_exposure_time(self):
         self._ar.dll.arv_camera_get_exposure_time.restype = c_double
@@ -447,7 +450,7 @@ class Camera(Device):
         return self._ar.dll.arv_camera_get_trigger_source(self._handle)
     
     def start_acquisition(self):
-        self.stream.pixel_format = self.get_string_feature("PixelFormat") #FIXME: should read the aravis cache, if possible
+        self.stream.pixel_format = self.get_string_feature("PixelFormat") 
         self._ar.dll.arv_camera_start_acquisition(self._handle)
 
     def start_acquisition_trigger(self):
@@ -506,7 +509,7 @@ if __name__ == "__main__":
         print("PacketSize: ", cam.get_integer_feature("GevSCPSPacketSize"))
 
     
-        #cam.setup_stream()
+        cam.setup_stream()
 
         from IPython.frontend.terminal.embed import InteractiveShellEmbed
         ipshell = InteractiveShellEmbed()
