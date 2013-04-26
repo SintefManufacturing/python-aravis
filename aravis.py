@@ -50,7 +50,7 @@ class Camera():
 
     def get_feature(self, name):
         ntype = self.get_feature_type(name)
-        if ntype in ("Enumeration", "String"):
+        if ntype in ("Enumeration", "String", "StringReg"):
             return self.dev.get_string_feature_value(name)
         elif ntype == "Integer":
             return self.dev.get_integer_feature_value(name)
@@ -63,7 +63,7 @@ class Camera():
 
     def set_feature(self, name, val):
         ntype = self.get_feature_type(name)
-        if ntype in ( "String", "Enumeration"):
+        if ntype in ( "String", "Enumeration", "StringReg"):
             return self.dev.set_string_feature_value(name, val)
         elif ntype == "Integer":
             return self.dev.set_integer_feature_value(name, int(val))
@@ -171,8 +171,8 @@ def get_device_ids():
 
 
 if __name__ == "__main__":
-    cam = Camera("Prosilica-02-2110A-06145")
-    #cam = Camera("AT-Automation Technology GmbH-20805103")
+    #cam = Camera("Prosilica-02-2110A-06145")
+    cam = Camera("AT-Automation Technology GmbH-20805103")
     #x, y, width, height = cam.get_region()
     print("Camera model: ", cam.get_model_name())
     print("Vendor Name: ", cam.get_vendor_name())

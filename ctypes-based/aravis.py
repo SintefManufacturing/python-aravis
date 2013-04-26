@@ -125,8 +125,34 @@ class ArvBuffer(Structure):
         ('height', c_uint32),
         ('pixel_format', c_uint32)
         ]
+ 
+class ArvDomNode(Structure):
+    pass
+
+ArvDomNode._fields_ = [
+        ('object', GObject),
+        ('next_sibling', POINTER(ArvDomNode)),
+        ('previous_sibling', POINTER(ArvDomNode)),
+        ('parent_node', POINTER(ArvDomNode)),
+        ('first_child', POINTER(ArvDomNode)),
+        ('last_child', POINTER(ArvDomNode))
+    ]
+  
+
+class ArDomDocument(Structure):
+    _fields_ = [
+        ('node', ArvDomNode),
+	    ('url', c_char_p)
+    ]
 
 
+class ArvGc(Structure):
+    _fields_ = [
+        ('base', c_void_p), #ArvDomDocument
+        ('node', c_void_p),
+	    ('device', POINTER(ArvDevice))
+    ]
+ 
 
 
 class Aravis(object):
@@ -171,7 +197,6 @@ class Stream(object):
         self._ar.g.g_object_set(self.stream, "packet-timeout", val*1000)
  
     def push_new_buffer(self, size):
-        print("new buffer", size)
         self._ar.dll.arv_stream_push_buffer(self.stream, self.new_buffer(size))
 
     def push_buffer(self, buf):
@@ -211,14 +236,11 @@ class Stream(object):
         else:
             pixelformat = np.uint8
         im = np.frombuffer(b, dtype=pixelformat, count=buf.contents.height * buf.contents.width)
-        im.shape = (buf.contents.width, buf.contents.height) 
-        print im
-        print im.shape
-        im2 = im.copy()
-        del(b)
-        del(im)
+        im.shape = (buf.contents.height, buf.contents.width) 
+        print("Shape: ", im.shape)
+        im = im.copy()
         self.push_buffer(buf)
-        return im2
+        return im
 
     def try_pop_array(self):
         buf = self.try_pop_buffer()
@@ -245,6 +267,10 @@ class Device(object):
         run genicam command. command result can in theroy be seen with get_status....
         """
         self._ar.dll.arv_device_execute_command(self._dev, cmd)
+
+    def get_genicam(self):
+         self._ar.dll.arv_device_get_genicam.restype = ArvGc
+         return self._ar.dll.arv_device_get_genicam(self._dev)
 
     def get_genicam_xml(self):
         self._ar.dll.arv_device_get_genicam_xml.restype = c_char_p
@@ -347,15 +373,17 @@ class Camera(Device):
         Device.__init__(self, aravislib, self.get_device())
 
         self.name = self.get_vendor_name() + b"-" + self.get_device_id()
-        self.stream = None
-
-    def setup_stream(self, size = 10):
-        """
-        how to do that when a stream is allready created???
-        """
         self.stream  = self.create_stream()
+        print("Created Camera object: ", self)
+        
+
+    def create_buffers(self, nb = 10):
+        """
+        add nb buffers to current stream
+        do not change image size after calling this methos, otherwise buffers may be too small
+        """
         payload = self.get_payload()
-        for i in range(0, size):
+        for i in range(0, nb):
             self.stream.push_new_buffer(payload)
 
     def try_get_frame(self):
@@ -509,11 +537,11 @@ if __name__ == "__main__":
         print("PacketSize: ", cam.get_integer_feature("GevSCPSPacketSize"))
 
     
-        cam.setup_stream()
+        cam.create_buffers()
 
         from IPython.frontend.terminal.embed import InteractiveShellEmbed
         ipshell = InteractiveShellEmbed()
         ipshell(local_ns=locals())
-    except:
+    finally:
         cam.cleanup()
         
