@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from ctypes import POINTER, create_string_buffer, byref, Structure, cdll, Union
 from ctypes import c_ulong, c_char, c_int, c_void_p, c_long, c_char_p, c_uint32, c_void_p, c_int64, c_float, c_bool, c_uint, c_double, c_int32, c_size_t, c_uint64, c_uint8
@@ -395,8 +396,14 @@ class Camera(Device):
     def get_frame(self):
         """
         return last frame. Wait if no frame available
+        Does not use directly C version since it may hang 
         """
-        return self.stream.pop_array()
+        while True:
+            frame = self.stream.try_pop_array()
+            if frame != None:
+                return frame
+            else:
+                time.sleep(0.005)
 
     def trigger(self):
         """
@@ -509,6 +516,9 @@ class Camera(Device):
     def cleanup(self):
         print(self.name, ": cleanup")
         self._ar.g.g_object_unref(self._handle)
+
+    def __del__(self):
+        self.cleanup()
 
 
 

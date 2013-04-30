@@ -11,7 +11,7 @@ TestImageSelector	Off
 PixelFormat	Mono8
 ReverseY	1
 AoiSelector	1
-AoiHeight	1088
+AoiHeight	2048
 AoiOffsetY	0
 AoiThreshold	120
 ImageModeAoiSelector	1
@@ -32,7 +32,7 @@ EnableDC0	1
 CameraMode	Image
 ColRangeStart	0
 ColRangeEnd	2047
-AoiSearchHeight	1088
+AoiSearchHeight	2048
 AoiSearchOffsetY	0
 Output2Invert	0
 TurnLaserOnAuto	0

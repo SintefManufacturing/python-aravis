@@ -1,3 +1,4 @@
+import numpy as np
 from gi.repository import Aravis
 
 class AravisException(Exception):
@@ -93,7 +94,7 @@ class Camera():
     def write_register(self, address, val):
         return self.dev.write_register(address, val)
 
-    def setup_buffers(self, nb):
+    def create_buffers(self, nb):
         payload = self.cam.get_payload()
         for i in range(0, nb):
 	        self.stream.push_buffer(Aravis.Buffer.new(payload, None))
@@ -114,14 +115,16 @@ class Camera():
     def _array_from_buffer(self, buf):
         if not buf:
             return None
-        if self.current_pixel_format == "Mono16":
-            pixelformat = np.uint16
+        data = buf.get_bufdata()
+        print(buf.pixel_format)
+        if buf.pixel_format == "Mono16":
+            dtype = np.uint16
         else:
-            pixelformat = np.uint8
-        #im = np.frombuffer(buf, dtype=pixelformat, count=buf.contents.height * buf.contents.width)
-        #im.shape = (buf.contents.width, buf.contents.height) 
-        #im = im.copy()
-        self.push_buffer(buf)
+            dtype = np.uint8
+        im = np.fromstring(data, dtype=dtype)
+        im.shape = (buf.width, buf.height) 
+        im = im.copy()
+        self.stream.push_buffer(buf)
         return im
 
     def trigger(self):
@@ -148,13 +151,13 @@ class Camera():
 
     def start_acquisition_continuous(self):
         self.set_feature("AcquisitionMode", "Continuous") #no acquisition limits
-        self.set_feature("TriggerSource", "Freerun") #as fast as possible
+        #self.set_feature("TriggerSource", "Freerun") #as fast as possible
         #self.set_string_feature("TriggerSource", "FixedRate") 
-        self.set_feature("TriggerMode", "On") #Not documented but necesary
+        #self.set_feature("TriggerMode", "On") #Not documented but necesary
         self.start_acquisition()
 
     def stop_acquisition(self):
-        self.cam.stop_acquisition(self._handle)
+        self.cam.stop_acquisition()
 
 
 
@@ -173,6 +176,7 @@ def get_device_ids():
 if __name__ == "__main__":
     #cam = Camera("Prosilica-02-2110A-06145")
     cam = Camera("AT-Automation Technology GmbH-20805103")
+    #cam = Camera(None)
     #x, y, width, height = cam.get_region()
     print("Camera model: ", cam.get_model_name())
     print("Vendor Name: ", cam.get_vendor_name())
