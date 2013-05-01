@@ -1,5 +1,8 @@
 import numpy as np
+import ctypes
 from gi.repository import Aravis
+
+Aravis.enable_interface ("Fake")
 
 class AravisException(Exception):
     pass
@@ -94,34 +97,63 @@ class Camera():
     def write_register(self, address, val):
         return self.dev.write_register(address, val)
 
-    def create_buffers(self, nb):
+    def create_buffers(self, nb=10):
         payload = self.cam.get_payload()
         for i in range(0, nb):
 	        self.stream.push_buffer(Aravis.Buffer.new(payload, None))
 
+    def try_get_buffer(self):
+        """
+        return raw aravis buffer object
+        """
+        return self.stream.try_pop_buffer()
+
     def try_get_frame(self):
         """
-        return last frame. Wait if no frame available
+        return last frame if there is one available otherwise None. 
         """
         buf =  self.stream.try_pop_buffer()
-        return self._array_from_buffer(buf)
+        return self.array_from_buffer_pointer(buf)
 
     def get_frame(self):
         """
         return last frame. Wait if no frame available
         """
-        return self.stream.pop_array()
+        buf = None
+        while buf == None:
+            buf =  self.stream.try_pop_buffer()
+        return self.array_from_buffer_pointer(buf)
+
+    def array_from_buffer_pointer(self, buf):
+        if not buf:
+            return None
+        INTP = ctypes.POINTER(ctypes.c_uint8)
+        #addr = buf.get_data_address() 
+        #addr = id(buf.data)
+        addr = ctypes.addressof(ctypes.c_uint8(buf.data))
+        addr = buf.data
+        print('address: ', addr, type(addr))
+        ptr = ctypes.cast(addr, INTP)
+        im = np.ctypeslib.as_array(ptr, (buf.height, buf.width))
+        im = im.copy()
+        self.stream.push_buffer(buf)
+        return im
 
     def _array_from_buffer(self, buf):
         if not buf:
             return None
-        data = buf.get_bufdata()
+        data = buf.get_bufdata(buf.size)
+        print("buf size:" , buf.size)
+        print("data size:" , len(data))
         print(buf.pixel_format)
         if buf.pixel_format == "Mono16":
             dtype = np.uint16
         else:
             dtype = np.uint8
-        im = np.fromstring(data, dtype=dtype)
+        im = np.fromstring(data, dtype=dtype, count=buf.width* buf.height)
+        #if im.size !=  buf.width* buf.height:
+            #print("Error, got a buffer og size
+        print("All: . ", im.shape, buf.width, buf.height, buf.width* buf.height)
         im.shape = (buf.width, buf.height) 
         im = im.copy()
         self.stream.push_buffer(buf)
@@ -175,8 +207,8 @@ def get_device_ids():
 
 if __name__ == "__main__":
     #cam = Camera("Prosilica-02-2110A-06145")
-    cam = Camera("AT-Automation Technology GmbH-20805103")
-    #cam = Camera(None)
+    #cam = Camera("AT-Automation Technology GmbH-20805103")
+    cam = Camera(None)
     #x, y, width, height = cam.get_region()
     print("Camera model: ", cam.get_model_name())
     print("Vendor Name: ", cam.get_vendor_name())

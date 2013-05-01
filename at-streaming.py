@@ -5,7 +5,8 @@ from aravis import Camera
 
 if __name__ == "__main__":
     #cam = ar.get_camera("Prosilica-02-2130A-06106")
-    cam = Camera("AT-Automation Technology GmbH-20805103")
+    #cam = Camera("AT-Automation Technology GmbH-20805103")
+    cam = Camera(None)
     cam.set_feature("GevSCPSPacketSize", 1500)
     cam.set_frame_rate(20)
     cam.create_buffers(20)
