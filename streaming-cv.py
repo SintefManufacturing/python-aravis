@@ -1,15 +1,26 @@
+import sys
 import time
 import cv2
 from aravis import Camera
 
 
 if __name__ == "__main__":
-    #cam = ar.get_camera("Prosilica-02-2130A-06106")
-    #cam = Camera("AT-Automation Technology GmbH-20805103")
-    cam = Camera(None)
+    if len(sys.argv) > 1:
+        arg = sys.argv[1]
+        if arg in ("None", "null"):
+            cam = Camera(None)
+        elif arg in ("pro", "prosilica"):
+            cam = ar.get_camera("Prosilica-02-2130A-06106")
+        elif arg in ("at"):
+            cam = Camera("AT-Automation Technology GmbH-20805103")
+        else:
+            cam = Camera(arg)
+    else:
+        cam = Camera("AT-Automation Technology GmbH-20805103")
+
     cam.set_feature("GevSCPSPacketSize", 1500)
     cam.set_frame_rate(20)
-    cam.create_buffers(20)
+    cam.create_buffers()
     cam.start_acquisition_continuous()
     cv2.namedWindow('capture')
 

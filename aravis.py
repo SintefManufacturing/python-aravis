@@ -100,7 +100,7 @@ class Camera():
     def create_buffers(self, nb=10):
         payload = self.cam.get_payload()
         for i in range(0, nb):
-	        self.stream.push_buffer(Aravis.Buffer.new(payload, None))
+	        self.stream.push_buffer(Aravis.Buffer.new(payload))
 
     def try_get_buffer(self):
         """
@@ -127,12 +127,12 @@ class Camera():
     def array_from_buffer_pointer(self, buf):
         if not buf:
             return None
-        INTP = ctypes.POINTER(ctypes.c_uint8)
-        #addr = buf.get_data_address() 
-        #addr = id(buf.data)
-        addr = ctypes.addressof(ctypes.c_uint8(buf.data))
+        if buf.pixel_format in (Aravis.PIXEL_FORMAT_MONO_8,
+                Aravis.PIXEL_FORMAT_BAYER_BG_8):
+            INTP = ctypes.POINTER(ctypes.c_uint8)
+        else:
+            INTP = ctypes.POINTER(ctypes.c_uint16)
         addr = buf.data
-        print('address: ', addr, type(addr))
         ptr = ctypes.cast(addr, INTP)
         im = np.ctypeslib.as_array(ptr, (buf.height, buf.width))
         im = im.copy()
