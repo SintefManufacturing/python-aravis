@@ -49,7 +49,8 @@ ChunkModeActive	0
 ProfileTriggerMode	FreeRun
 SequencerMode	FreeRun
 GevStreamChannelSelector	0
-GevSCPSPacketSize	8192
+#GevSCPSPacketSize	8192
+GevSCPSPacketSize	1500
 GevSCPD	5000
 GevHeartbeatTimeout	3000
 EventSelector	None
