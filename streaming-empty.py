@@ -1,6 +1,5 @@
 import sys
 import time
-import cv2
 from aravis import Camera
 
 
@@ -21,16 +20,19 @@ if __name__ == "__main__":
         cam.set_feature("GevSCPSPacketSize", 1500)
         cam.set_frame_rate(20)
         cam.start_acquisition_continuous()
-        cv2.namedWindow('capture')
 
         count = 0
+        lastcount = 0
+        lasttid = time.time()
         while True:
             count += 1
-            print("frame nb: ", count)
             frame = cam.get_frame(wait=True)
-            print(time.time())
-            cv2.imshow("capture", frame)
-            cv2.waitKey(1)
+            tid = time.time()
+            print("frame nb: ", count)
+            if count - lastcount >= 10:
+                lastcount = count
+                print("Frame rate: ", 10/(tid - lasttid))
+                lasttid = tid
     finally:
         cam.stop_acquisition()
         cam.shutdown()
