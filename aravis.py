@@ -1,3 +1,5 @@
+import time
+from threading import Thread, Lock, Condition
 import numpy as np
 import ctypes
 from gi.repository import Aravis
@@ -7,12 +9,19 @@ Aravis.enable_interface ("Fake")
 class AravisException(Exception):
     pass
 
-class Camera():
+class Camera(Thread):
     def __init__(self, name):
+        Thread.__init__(self)
         self.name = name
         self.cam = Aravis.Camera.new(name)
         self.dev = self.cam.get_device()
         self.stream = self.cam.create_stream(None, None)
+        self._frame = None
+        self._cond = Condition()
+        self._lock = Lock()
+        self._stopev = False
+        self._acquisition_started = False
+        self.start()
 
     def __getattr__(self, name):
         if hasattr(self.cam, name):
@@ -41,7 +50,7 @@ class Camera():
                 print("Config file: Setting {} to {} ".format( name, val))
                 try:
                     self.set_feature(name, val)
-                except Exception as ex:
+                except AravisException as ex:
                     print(ex)
         f.close()
 
@@ -100,31 +109,32 @@ class Camera():
     def create_buffers(self, nb=10):
         payload = self.cam.get_payload()
         for i in range(0, nb):
-	        self.stream.push_buffer(Aravis.Buffer.new(payload))
+            self.stream.push_buffer(Aravis.Buffer.new(payload))
 
-    def try_get_buffer(self):
-        """
-        return raw aravis buffer object
-        """
-        return self.stream.try_pop_buffer()
+    def run(self):
+        while not self._stopev:
+            if self._acquisition_started:
+                buf = self.stream.try_pop_buffer()
+                if buf:
+                    tmp = self._array_from_buffer_address(buf)
+                    with self._lock:
+                        self._frame = tmp
+                    with self._cond:
+                        self._cond.notifyAll()
+                    self.stream.push_buffer(buf)
+            time.sleep(0.001)
 
-    def try_get_frame(self):
-        """
-        return last frame if there is one available otherwise None. 
-        """
-        buf =  self.stream.try_pop_buffer()
-        return self.array_from_buffer_pointer(buf)
+    def shutdown(self):
+        self._stopev = True
 
-    def get_frame(self):
-        """
-        return last frame. Wait if no frame available
-        """
-        buf = None
-        while buf == None:
-            buf =  self.stream.try_pop_buffer()
-        return self.array_from_buffer_pointer(buf)
+    def get_frame(self, wait=False):
+        if wait:
+            with self._cond:
+                self._cond.wait()
+        with self._lock:
+            return self._frame
 
-    def array_from_buffer_pointer(self, buf):
+    def _array_from_buffer_address(self, buf):
         if not buf:
             return None
         if buf.pixel_format in (Aravis.PIXEL_FORMAT_MONO_8,
@@ -136,27 +146,6 @@ class Camera():
         ptr = ctypes.cast(addr, INTP)
         im = np.ctypeslib.as_array(ptr, (buf.height, buf.width))
         im = im.copy()
-        self.stream.push_buffer(buf)
-        return im
-
-    def _array_from_buffer(self, buf):
-        if not buf:
-            return None
-        data = buf.get_bufdata(buf.size)
-        print("buf size:" , buf.size)
-        print("data size:" , len(data))
-        print(buf.pixel_format)
-        if buf.pixel_format == "Mono16":
-            dtype = np.uint16
-        else:
-            dtype = np.uint8
-        im = np.fromstring(data, dtype=dtype, count=buf.width* buf.height)
-        #if im.size !=  buf.width* buf.height:
-            #print("Error, got a buffer og size
-        print("All: . ", im.shape, buf.width, buf.height, buf.width* buf.height)
-        im.shape = (buf.width, buf.height) 
-        im = im.copy()
-        self.stream.push_buffer(buf)
         return im
 
     def trigger(self):
@@ -172,13 +161,16 @@ class Camera():
         return self.__str__()
     
     def start_acquisition(self):
-        self._current_pixel_format = self.get_feature("PixelFormat") 
+        empty, full = self.stream.get_n_buffers()
+        if (empty + full) == 0:
+            self.create_buffers(3) #FIXME: maybe 2 is enough??
+        self._acquisition_started = True
         self.cam.start_acquisition()
 
     def start_acquisition_trigger(self):
         self.set_feature("AcquisitionMode", "Continuous") #no acquisition limits
-        self.set_feature("TriggerSource", "Software") #wait for trigger t acquire image
-        self.set_feature("TriggerMode", "On") #Not documented but necesary
+        #self.set_feature("TriggerSource", "Software") #wait for trigger t acquire image
+        #self.set_feature("TriggerMode", "On") #Not documented but necesary
         self.start_acquisition()
 
     def start_acquisition_continuous(self):
@@ -189,6 +181,7 @@ class Camera():
         self.start_acquisition()
 
     def stop_acquisition(self):
+        self._acquisition_started = False
         self.cam.stop_acquisition()
 
 

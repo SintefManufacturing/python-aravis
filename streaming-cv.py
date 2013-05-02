@@ -17,24 +17,21 @@ if __name__ == "__main__":
             cam = Camera(arg)
     else:
         cam = Camera("AT-Automation Technology GmbH-20805103")
-
-    cam.set_feature("GevSCPSPacketSize", 1500)
-    cam.set_frame_rate(20)
-    cam.create_buffers()
-    cam.start_acquisition_continuous()
-    cv2.namedWindow('capture')
-
-    count = 0
     try:
+        cam.set_feature("GevSCPSPacketSize", 1500)
+        cam.set_frame_rate(20)
+        cam.create_buffers()
+        cam.start_acquisition_continuous()
+        cv2.namedWindow('capture')
+
+        count = 0
         while True:
             count += 1
             print("frame nb: ", count)
-            frame = None
-            while frame == None:
-                frame = cam.try_get_frame()
-                time.sleep(0.001)
+            frame = cam.get_frame(wait=True)
             print(time.time())
             cv2.imshow("capture", frame)
             cv2.waitKey(1)
     finally:
         cam.stop_acquisition()
+        cam.shutdown()
