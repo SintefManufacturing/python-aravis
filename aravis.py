@@ -4,7 +4,6 @@ import numpy as np
 import ctypes
 from gi.repository import Aravis
 
-Aravis.enable_interface ("Fake")
 
 class AravisException(Exception):
     pass
@@ -117,11 +116,11 @@ class Camera(Thread):
                 buf = self.stream.try_pop_buffer()
                 if buf:
                     tmp = self._array_from_buffer_address(buf)
+                    self.stream.push_buffer(buf)
                     with self._lock:
                         self._frame = tmp
                     with self._cond:
                         self._cond.notifyAll()
-                    self.stream.push_buffer(buf)
             time.sleep(0.001)
 
     def shutdown(self):
@@ -163,7 +162,7 @@ class Camera(Thread):
     def start_acquisition(self):
         empty, full = self.stream.get_n_buffers()
         if (empty + full) == 0:
-            self.create_buffers(3) #FIXME: maybe 2 is enough??
+            self.create_buffers(3) #FIXME: is there an optimal number of buffers?
         self._acquisition_started = True
         self.cam.start_acquisition()
 
@@ -202,6 +201,7 @@ if __name__ == "__main__":
     #cam = Camera("Prosilica-02-2110A-06145")
     #cam = Camera("AT-Automation Technology GmbH-20805103")
     cam = Camera(None)
+    #Aravis.enable_interface ("Fake")
     #x, y, width, height = cam.get_region()
     print("Camera model: ", cam.get_model_name())
     print("Vendor Name: ", cam.get_vendor_name())
