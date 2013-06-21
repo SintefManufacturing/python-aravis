@@ -1,3 +1,7 @@
+"""
+High level pythonic interface to to the aravis library
+"""
+
 import time
 from threading import Thread, Lock, Condition
 import numpy as np
@@ -9,10 +13,19 @@ class AravisException(Exception):
     pass
 
 class Camera(Thread):
+    """
+    Create a Camera object. 
+    name is the camera ID in aravis.
+    If name is None, the first found camera is used.
+    If no camera is found an AravisException is raised.
+    """
     def __init__(self, name):
         Thread.__init__(self)
         self.name = name
-        self.cam = Aravis.Camera.new(name)
+        try:
+            self.cam = Aravis.Camera.new(name)
+        except TypeError as ex:
+            raise AravisException("Error no camera found")
         self.dev = self.cam.get_device()
         self.stream = self.cam.create_stream(None, None)
         self._frame = None
@@ -20,6 +33,7 @@ class Camera(Thread):
         self._lock = Lock()
         self._stopev = False
         self._acquisition_started = False
+        self._last_payload = 0
         self.start()
 
     def __getattr__(self, name):
@@ -28,7 +42,7 @@ class Camera(Thread):
         #elif hasattr(self.dev, name):
         #    return getattr(self.dev, name)
         else:
-            raise AttributeError
+            raise AttributeError(name)
 
     def __dir__(self):
         tmp = list(self.__dict__.keys()) + self.cam.__dir__()# + self.dev.__dir__()
@@ -105,10 +119,11 @@ class Camera(Thread):
     def write_register(self, address, val):
         return self.dev.write_register(address, val)
 
-    def create_buffers(self, nb=10):
-        payload = self.cam.get_payload()
+    def create_buffers(self, nb=10, payload=None):
+        if not payload:
+            payload = self.cam.get_payload()
         for i in range(0, nb):
-            self.stream.push_buffer(Aravis.Buffer.new(payload))
+            self.stream.push_buffer(Aravis.Buffer.new_allocate(payload))
 
     def run(self):
         while not self._stopev:
@@ -125,6 +140,7 @@ class Camera(Thread):
 
     def shutdown(self):
         self._stopev = True
+    cleanup = shutdown
 
     def get_frame(self, wait=False):
         if wait:
@@ -160,9 +176,10 @@ class Camera(Thread):
         return self.__str__()
     
     def start_acquisition(self):
-        empty, full = self.stream.get_n_buffers()
-        if (empty + full) == 0:
-            self.create_buffers(3) #FIXME: is there an optimal number of buffers?
+        payload = self.cam.get_payload()
+        if payload != self._last_payload:
+            self.create_buffers(3, payload) #FIXME: is there an optimal number of buffers?
+            self._last_payload = payload
         self._acquisition_started = True
         self.cam.start_acquisition()
 
@@ -201,28 +218,31 @@ if __name__ == "__main__":
     #cam = Camera("Prosilica-02-2110A-06145")
     #cam = Camera("AT-Automation Technology GmbH-20805103")
     cam = Camera(None)
-    #Aravis.enable_interface ("Fake")
-    #x, y, width, height = cam.get_region()
-    print("Camera model: ", cam.get_model_name())
-    print("Vendor Name: ", cam.get_vendor_name())
-    print("Device id: ", cam.get_device_id())
-    #print("Image size: ", width, ",", height)
-    print("Sensor size: ", cam.get_sensor_size()) 
-    print("Exposure: ", cam.get_exposure_time())
-    print("Frame rate: ", cam.get_frame_rate())
-    print("Payload: ", cam.get_payload())
-    print("AcquisitionMode: ", cam.get_feature("AcquisitionMode"))
-    print("Acquisition vals: ", cam.get_feature_vals("AcquisitionMode"))
-    #print("TriggerMode: ", cam.get_feature("TriggerMode"))
-    #print("Bandwidth: ", cam.get_feature("StreamBytesPerSecond"))
-    print("PixelFormat: ", cam.get_feature("PixelFormat"))
-    #print("ExposureAuto: ", cam.get_feature("ExposureAuto"))
-    print("PacketSize: ", cam.get_feature("GevSCPSPacketSize"))
+    try:
+        #Aravis.enable_interface ("Fake")
+        #x, y, width, height = cam.get_region()
+        print("Camera model: ", cam.get_model_name())
+        print("Vendor Name: ", cam.get_vendor_name())
+        print("Device id: ", cam.get_device_id())
+        #print("Image size: ", width, ",", height)
+        print("Sensor size: ", cam.get_sensor_size()) 
+        print("Exposure: ", cam.get_exposure_time())
+        print("Frame rate: ", cam.get_frame_rate())
+        print("Payload: ", cam.get_payload())
+        print("AcquisitionMode: ", cam.get_feature("AcquisitionMode"))
+        print("Acquisition vals: ", cam.get_feature_vals("AcquisitionMode"))
+        #print("TriggerMode: ", cam.get_feature("TriggerMode"))
+        #print("Bandwidth: ", cam.get_feature("StreamBytesPerSecond"))
+        print("PixelFormat: ", cam.get_feature("PixelFormat"))
+        #print("ExposureAuto: ", cam.get_feature("ExposureAuto"))
+        print("PacketSize: ", cam.get_feature("GevSCPSPacketSize"))
 
     
-    #cam.setup_stream()
+        #cam.setup_stream()
 
-    from IPython.frontend.terminal.embed import InteractiveShellEmbed
-    ipshell = InteractiveShellEmbed()
-    ipshell(local_ns=locals())
+        from IPython.frontend.terminal.embed import InteractiveShellEmbed
+        ipshell = InteractiveShellEmbed()
+        ipshell(local_ns=locals())
+    finally:
+        cam.shutdown()
 
