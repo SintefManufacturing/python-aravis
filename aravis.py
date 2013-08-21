@@ -19,7 +19,7 @@ class Camera(Thread):
     If name is None, the first found camera is used.
     If no camera is found an AravisException is raised.
     """
-    def __init__(self, name):
+    def __init__(self, name=None):
         Thread.__init__(self)
         self.name = name
         try:
@@ -237,8 +237,6 @@ if __name__ == "__main__":
         #print("ExposureAuto: ", cam.get_feature("ExposureAuto"))
         print("PacketSize: ", cam.get_feature("GevSCPSPacketSize"))
 
-    
-        #cam.setup_stream()
 
         from IPython.frontend.terminal.embed import InteractiveShellEmbed
         ipshell = InteractiveShellEmbed()

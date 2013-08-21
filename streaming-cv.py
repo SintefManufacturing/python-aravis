@@ -19,7 +19,7 @@ if __name__ == "__main__":
         cam = Camera("AT-Automation Technology GmbH-20805103")
     try:
         cam.start_acquisition_continuous()
-        cv2.namedWindow('capture')
+        cv2.namedWindow('capture', flags=0)
 
         count = 0
         while True:

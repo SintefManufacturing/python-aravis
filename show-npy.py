@@ -10,7 +10,7 @@ if __name__ == "__main__":
     else:
         print("Usage show-npy path/to/npyfile.npy")
         sys.exit(1)
-    cv2.namedWindow('capture')
+    cv2.namedWindow('capture', flags=0)
     frame = np.load(path)
     cv2.imshow("capture", frame)
     cv2.waitKey(0)

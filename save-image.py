@@ -9,7 +9,8 @@ if __name__ == "__main__":
         path = sys.argv[1]
     else:
         path = "frame.png"
-    cam = aravis.Camera("AT-Automation Technology GmbH-20805103")
+    #cam = aravis.Camera("AT-Automation Technology GmbH-20805103")
+    cam = aravis.Camera()
     cam.start_acquisition_continuous()
     try:
         frame = None
