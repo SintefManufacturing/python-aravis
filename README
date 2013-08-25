@@ -12,4 +12,19 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Pythonic interface to the auo-generated aravis bindings.
-See examples to use the library
+
+Minimal example code:
+
+import aravis
+ids = aravis.get_camera_ids() #List visible cameras
+cam = Camera(ids[0]) #get the first camera
+try:
+    cam.start_acquisition_continuous()
+    frame = cam.get_frame(wait=True)# get next frame from camera
+    print("Saving frame to ", "myframe.npy")
+    np.save(path, frame)
+    cam.stop_acquisition()
+finally:
+    cam.shutdown()
+
+Next read the other examples and the code
