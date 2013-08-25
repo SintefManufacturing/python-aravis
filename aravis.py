@@ -8,6 +8,10 @@ import numpy as np
 import ctypes
 from gi.repository import Aravis
 
+__author__ = "Olivier Roulet-Dubonnet, Morten Lind"
+__copyright__ = "Copyright 2011-2013, Sintef Raufoss Manufacturing"
+__license__ = "GPLv3"
+__version__ = "0.1"
 
 class AravisException(Exception):
     pass
