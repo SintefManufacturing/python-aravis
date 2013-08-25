@@ -3,7 +3,7 @@ High level pythonic interface to to the aravis library
 """
 
 import time
-from threading import Thread, Lock, Condition
+import logging
 import numpy as np
 import ctypes
 from gi.repository import Aravis
@@ -16,34 +16,38 @@ __version__ = "0.1"
 class AravisException(Exception):
     pass
 
-class Camera(Thread):
+class Camera(object):
     """
     Create a Camera object. 
     name is the camera ID in aravis.
     If name is None, the first found camera is used.
     If no camera is found an AravisException is raised.
     """
-    def __init__(self, name=None):
-        Thread.__init__(self)
+    def __init__(self, name=None, logLevel=logging.WARNING):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        if len(logging.root.handlers) == 0: #dirty hack
+            logging.basicConfig()
+        self.logger.setLevel(logLevel)
         self.name = name
         try:
             self.cam = Aravis.Camera.new(name)
-        except TypeError as ex:
-            raise AravisException("Error no camera found")
+        except TypeError:
+            if name:
+                raise AravisException("Error the camera {} was not found".format(name))
+            else:
+                raise AravisException("Error no camera found")
+        self.name = self.cam.get_model_name()
+        self.logger.info("Camera object created for device: {}".format(self.name))
         self.dev = self.cam.get_device()
         self.stream = self.cam.create_stream(None, None)
         self._frame = None
-        self._cond = Condition()
-        self._lock = Lock()
-        self._stopev = False
-        self._acquisition_started = False
         self._last_payload = 0
         self.start()
 
     def __getattr__(self, name):
-        if hasattr(self.cam, name):
+        if hasattr(self.cam, name): # expose methods from the aravis camera object which is also relatively high level
             return getattr(self.cam, name)
-        #elif hasattr(self.dev, name):
+        #elif hasattr(self.dev, name): #epose methods from the aravis device object, this might be confusing
         #    return getattr(self.dev, name)
         else:
             raise AttributeError(name)
@@ -55,6 +59,7 @@ class Camera(Thread):
     def load_config(self, path):
         """
         read a config file as written by stemmer imaging for example
+        and apply the config to the camera
         """
         f = open(path)
         for line in f:
@@ -64,11 +69,11 @@ class Camera(Thread):
                 name, val = line.split()
                 name = name.strip()
                 val = val.strip()
-                print("Config file: Setting {} to {} ".format( name, val))
+                self.logger.info("Config file: Setting {} to {} ".format( name, val))
                 try:
                     self.set_feature(name, val)
                 except AravisException as ex:
-                    print(ex)
+                    self.logger.warning(ex)
         f.close()
 
     def get_feature_type(self, name):
@@ -79,6 +84,9 @@ class Camera(Thread):
         return node.get_node_name()
 
     def get_feature(self, name):
+        """
+        return value of a feature. independantly of its type
+        """
         ntype = self.get_feature_type(name)
         if ntype in ("Enumeration", "String", "StringReg"):
             return self.dev.get_string_feature_value(name)
@@ -89,9 +97,12 @@ class Camera(Thread):
         elif ntype == "Boolean":
             return self.dev.get_integer_feature_value(name)
         else:
-            print("Feature type not implemented: ", ntype)
+            self.logger.warning("Feature type not implemented: ", ntype)
 
     def set_feature(self, name, val):
+        """
+        set value of a feature
+        """
         ntype = self.get_feature_type(name)
         if ntype in ( "String", "Enumeration", "StringReg"):
             return self.dev.set_string_feature_value(name, val)
@@ -102,9 +113,12 @@ class Camera(Thread):
         elif ntype == "Boolean":
             return self.dev.set_integer_feature_value(name, int(val))
         else:
-            print("Feature type not implemented: ", ntype)
+            self.logger.warning("Feature type not implemented: ", ntype)
 
     def get_genicam(self):
+        """
+        return genicam xml from the camera
+        """
         return self.dev.get_genicam_xml()
 
     def get_feature_vals(self, name):
@@ -126,32 +140,29 @@ class Camera(Thread):
     def create_buffers(self, nb=10, payload=None):
         if not payload:
             payload = self.cam.get_payload()
+        self.logger.info("Creating {} memory buffers of size {}".format(nb, payload))
         for i in range(0, nb):
             self.stream.push_buffer(Aravis.Buffer.new_allocate(payload))
 
-    def run(self):
-        while not self._stopev:
-            if self._acquisition_started:
-                buf = self.stream.try_pop_buffer()
-                if buf:
-                    tmp = self._array_from_buffer_address(buf)
-                    self.stream.push_buffer(buf)
-                    with self._lock:
-                        self._frame = tmp
-                    with self._cond:
-                        self._cond.notifyAll()
-            time.sleep(0.001)
+    def pop_frame(self):
+        while True: #loop in python in order to allow interrupt, have the loop in C might hang
+            frame = self.try_pop_buffer()
+            if not frame:
+                time.sleep(0.001)
+            else:
+                return frame
 
-    def shutdown(self):
-        self._stopev = True
-    cleanup = shutdown
-
-    def get_frame(self, wait=False):
-        if wait:
-            with self._cond:
-                self._cond.wait()
-        with self._lock:
-            return self._frame
+    def try_pop_frame(self):
+        """
+        return the oldest frame in the aravis buffer
+        """
+        buf = self.stream.try_pop_buffer()
+        if buf:
+            frame = self._array_from_buffer_address(buf)
+            self.stream.push_buffer(buf)
+            return frame
+        else:
+            return None
 
     def _array_from_buffer_address(self, buf):
         if not buf:
@@ -169,7 +180,7 @@ class Camera(Thread):
 
     def trigger(self):
         """
-        trigger camera to take a picture in trigger source mode
+        trigger camera to take a picture when camera is in software trigger mode
         """
         self.execute_command("TriggerSoftware")
 
@@ -179,30 +190,33 @@ class Camera(Thread):
     def __repr__(self):
         return self.__str__()
     
-    def start_acquisition(self):
+    def start_acquisition(self, nb_buffers=10):
+        self.logger.info("stariting acquisition")
         payload = self.cam.get_payload()
         if payload != self._last_payload:
-            self.create_buffers(3, payload) #FIXME: is there an optimal number of buffers?
+            #FIXME should clear buffers
+            self.create_buffers(nb_buffers, payload) 
             self._last_payload = payload
-        self._acquisition_started = True
         self.cam.start_acquisition()
 
-    def start_acquisition_trigger(self):
+    def start_acquisition_trigger(self, nb_buffers=1):
         self.set_feature("AcquisitionMode", "Continuous") #no acquisition limits
-        #self.set_feature("TriggerSource", "Software") #wait for trigger t acquire image
-        #self.set_feature("TriggerMode", "On") #Not documented but necesary
-        self.start_acquisition()
+        self.set_feature("TriggerSource", "Software") #wait for trigger t acquire image
+        self.set_feature("TriggerMode", "On") #Not documented but necesary
+        self.start_acquisition(nb_buffers)
 
-    def start_acquisition_continuous(self):
+    def start_acquisition_continuous(self, nb_buffers=20):
         self.set_feature("AcquisitionMode", "Continuous") #no acquisition limits
         #self.set_feature("TriggerSource", "Freerun") #as fast as possible
         #self.set_string_feature("TriggerSource", "FixedRate") 
         #self.set_feature("TriggerMode", "On") #Not documented but necesary
-        self.start_acquisition()
+        self.start_acquisition(nb_buffers)
 
     def stop_acquisition(self):
-        self._acquisition_started = False
         self.cam.stop_acquisition()
+
+    def shutdown(self):
+        self.logger.warning("It is not necessary to call shutdown in this version of python-aravis")
 
 
 
