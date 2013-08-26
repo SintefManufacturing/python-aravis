@@ -13,7 +13,7 @@ if __name__ == "__main__":
     try:
         start = True
         while True:
-            frame = cam.get_frame(wait=True)
+            frame = cam.pop_frame()
             print(frame.shape)
             plt.clf()
             plt.plot(frame.T)
@@ -29,4 +29,3 @@ if __name__ == "__main__":
         #ipshell(local_ns=locals())
     finally:
         cam.stop_acquisition()
-        cam.shutdown()

@@ -25,10 +25,9 @@ if __name__ == "__main__":
         while True:
             count += 1
             print("frame nb: ", count)
-            frame = cam.get_frame(wait=True)
+            frame = cam.pop_frame()
             print(time.time())
             cv2.imshow("capture", frame)
             cv2.waitKey(1)
     finally:
         cam.stop_acquisition()
-        cam.shutdown()
