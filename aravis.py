@@ -42,7 +42,6 @@ class Camera(object):
         self.stream = self.cam.create_stream(None, None)
         self._frame = None
         self._last_payload = 0
-        self.start()
 
     def __getattr__(self, name):
         if hasattr(self.cam, name): # expose methods from the aravis camera object which is also relatively high level
@@ -146,8 +145,8 @@ class Camera(object):
 
     def pop_frame(self):
         while True: #loop in python in order to allow interrupt, have the loop in C might hang
-            frame = self.try_pop_buffer()
-            if not frame:
+            frame = self.try_pop_frame()
+            if frame is None:
                 time.sleep(0.001)
             else:
                 return frame
