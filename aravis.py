@@ -151,7 +151,7 @@ class Camera(object):
             else:
                 return frame
 
-    def try_pop_frame(self):
+    def try_pop_frame(self, timestamp=False):
         """
         return the oldest frame in the aravis buffer
         """
@@ -159,9 +159,15 @@ class Camera(object):
         if buf:
             frame = self._array_from_buffer_address(buf)
             self.stream.push_buffer(buf)
-            return frame
+            if timestamp:
+                return buf.timestamp_ns, frame
+            else:
+                return frame
         else:
-            return None
+            if timestamp:
+                return None, None
+            else:
+                return None
 
     def _array_from_buffer_address(self, buf):
         if not buf:
@@ -190,7 +196,7 @@ class Camera(object):
         return self.__str__()
     
     def start_acquisition(self, nb_buffers=10):
-        self.logger.info("stariting acquisition")
+        self.logger.info("starting acquisition")
         payload = self.cam.get_payload()
         if payload != self._last_payload:
             #FIXME should clear buffers
