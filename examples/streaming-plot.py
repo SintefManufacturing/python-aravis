@@ -13,7 +13,7 @@ if __name__ == "__main__":
     try:
         start = True
         while True:
-            frame = cam.get_frame(wait=True)
+            frame = cam.pop_frame()
             plt.clf()
             plt.plot(frame.T)
             if start:
@@ -24,4 +24,3 @@ if __name__ == "__main__":
 
     finally:
         cam.stop_acquisition()
-        cam.shutdown()

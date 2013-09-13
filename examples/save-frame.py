@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 from aravis import Camera
 
@@ -11,8 +12,8 @@ if __name__ == "__main__":
     else:
         path = "frame.npy"
     try:
-        cam.start_acquisition_continuous()
-        frame = cam.get_frame(wait=True)
+        cam.start_acquisition_trigger()
+        frame = cam.pop_frame()
         print("Saving frame to ", path)
         np.save(path, frame)
         cam.stop_acquisition()

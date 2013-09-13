@@ -17,9 +17,8 @@ if __name__ == "__main__":
         cam.start_acquisition()
         frame = cam.get_frame(wait=True)
         cam.stop_acquisition()
-        from IPython.frontend.terminal.embed import InteractiveShellEmbed
-        ipshell = InteractiveShellEmbed()
-        ipshell(local_ns=locals())
+        from IPython import embed
+        embed()
     finally:
         cam.shutdown()
 
