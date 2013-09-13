@@ -14,19 +14,14 @@ if __name__ == "__main__":
         start = True
         while True:
             frame = cam.get_frame(wait=True)
-            print(frame.shape)
             plt.clf()
             plt.plot(frame.T)
             if start:
-                print("showing")
                 plt.show(block=False)
                 start = False
             else:
                 plt.draw()
 
-        #from IPython.frontend.terminal.embed import InteractiveShellEmbed
-        #ipshell = InteractiveShellEmbed( banner1="\nStarting IPython shell, robot object is available\n")
-        #ipshell(local_ns=locals())
     finally:
         cam.stop_acquisition()
         cam.shutdown()
