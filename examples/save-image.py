@@ -11,9 +11,10 @@ if __name__ == "__main__":
         path = "frame.png"
     #cam = aravis.Camera("AT-Automation Technology GmbH-20805103")
     cam = aravis.Camera()
-    cam.start_acquisition_trigger()
+    #cam.start_acquisition_trigger()
+    cam.start_acquisition_continuous()
     try:
-        cam.trigger()
+        #cam.trigger()
         frame = cam.pop()
         print("Saving image to ", path)
         cv2.imwrite(path, frame)

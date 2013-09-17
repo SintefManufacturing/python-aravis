@@ -11,11 +11,10 @@ if __name__ == "__main__":
         path = sys.argv[1]
     else:
         path = "frame.npy"
-    try:
-        cam.start_acquisition_trigger()
-        frame = cam.pop()
-        print("Saving frame to ", path)
-        np.save(path, frame)
-        cam.stop_acquisition()
-    finally:
-        cam.shutdown()
+
+    #cam.start_acquisition_trigger()
+    cam.start_acquisition_continuous()
+    frame = cam.pop()
+    print("Saving frame to ", path)
+    np.save(path, frame)
+    cam.stop_acquisition()
