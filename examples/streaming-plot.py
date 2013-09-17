@@ -1,3 +1,4 @@
+import sys
 from aravis import Camera
 import time
 import matplotlib
@@ -6,14 +7,21 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == "__main__":
-    #cam = ar.get_camera("Prosilica-02-2130A-06106")
-    cam = Camera("AT-Automation Technology GmbH-20805103")
-    cam.set_feature("GevSCPSPacketSize", 1500)
+    if len(sys.argv) > 1:
+        arg = sys.argv[1]
+        if arg in ("None", "null"):
+            cam = Camera()
+        else:
+            cam = Camera(arg)
+    else:
+        cam = Camera()
+    
+    #cam.set_feature("GevSCPSPacketSize", 1500)
     cam.start_acquisition_continuous()
     try:
         start = True
         while True:
-            frame = cam.pop_frame()
+            frame = cam.pop()
             plt.clf()
             plt.plot(frame.T)
             if start:

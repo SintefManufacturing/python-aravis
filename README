@@ -28,3 +28,7 @@ finally:
     cam.shutdown()
 
 Next read the other examples and the code
+
+Rmq: Aravis needs to be compiled with intropsection support.
+It requires at least libgirepository1.0-dev and gobject-introspection packges on ubuntu
+

@@ -14,7 +14,7 @@ if __name__ == "__main__":
     cam.start_acquisition_trigger()
     try:
         cam.trigger()
-        frame = cam.pop_frame()
+        frame = cam.pop()
         print("Saving image to ", path)
         cv2.imwrite(path, frame)
     finally:

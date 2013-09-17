@@ -11,7 +11,7 @@ from gi.repository import Aravis
 __author__ = "Olivier Roulet-Dubonnet, Morten Lind"
 __copyright__ = "Copyright 2011-2013, Sintef Raufoss Manufacturing"
 __license__ = "GPLv3"
-__version__ = "0.1"
+__version__ = "0.5"
 
 class AravisException(Exception):
     pass
@@ -143,15 +143,22 @@ class Camera(object):
         for i in range(0, nb):
             self.stream.push_buffer(Aravis.Buffer.new_allocate(payload))
 
-    def pop_frame(self):
+    def pop(self, timestamp=False):
         while True: #loop in python in order to allow interrupt, have the loop in C might hang
-            frame = self.try_pop_frame()
+            if timestamp:
+                ts, frame = self.try_pop(timestamp)
+            else:
+                frame = self.try_pop()
+
             if frame is None:
                 time.sleep(0.001)
             else:
-                return frame
+                if timestamp:
+                    return ts, frame
+                else:
+                    return frame
 
-    def try_pop_frame(self, timestamp=False):
+    def try_pop(self, timestamp=False):
         """
         return the oldest frame in the aravis buffer
         """

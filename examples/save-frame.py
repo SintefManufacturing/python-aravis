@@ -13,7 +13,7 @@ if __name__ == "__main__":
         path = "frame.npy"
     try:
         cam.start_acquisition_trigger()
-        frame = cam.pop_frame()
+        frame = cam.pop()
         print("Saving frame to ", path)
         np.save(path, frame)
         cam.stop_acquisition()
