@@ -23,11 +23,11 @@ class Camera(object):
     If name is None, the first found camera is used.
     If no camera is found an AravisException is raised.
     """
-    def __init__(self, name=None, logLevel=logging.WARNING):
+    def __init__(self, name=None, loglevel=logging.WARNING):
         self.logger = logging.getLogger(self.__class__.__name__)
         if len(logging.root.handlers) == 0: #dirty hack
             logging.basicConfig()
-        self.logger.setLevel(logLevel)
+        self.logger.setLevel(loglevel)
         self.name = name
         try:
             self.cam = Aravis.Camera.new(name)
