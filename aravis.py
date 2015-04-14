@@ -33,13 +33,15 @@ class Camera(object):
             self.cam = Aravis.Camera.new(name)
         except TypeError:
             if name:
-                raise AravisException("Error the camera {} was not found".format(name))
+                raise AravisException("Error the camera %s was not found", name)
             else:
                 raise AravisException("Error no camera found")
         self.name = self.cam.get_model_name()
-        self.logger.info("Camera object created for device: {}".format(self.name))
+        self.logger.info("Camera object created for device: %s", self.name)
         self.dev = self.cam.get_device()
         self.stream = self.cam.create_stream(None, None)
+        if self.stream is None:
+            raise Exception("Error creating buffer")
         self._frame = None
         self._last_payload = 0
 
@@ -68,7 +70,7 @@ class Camera(object):
                 name, val = line.split()
                 name = name.strip()
                 val = val.strip()
-                self.logger.info("Config file: Setting {} to {} ".format( name, val))
+                self.logger.info("Config file: Setting %s to %s ", name, val)
                 try:
                     self.set_feature(name, val)
                 except AravisException as ex:
@@ -96,14 +98,14 @@ class Camera(object):
         elif ntype == "Boolean":
             return self.dev.get_integer_feature_value(name)
         else:
-            self.logger.warning("Feature type not implemented: ", ntype)
+            self.logger.warning("Feature type not implemented: %s", ntype)
 
     def set_feature(self, name, val):
         """
         set value of a feature
         """
         ntype = self.get_feature_type(name)
-        if ntype in ( "String", "Enumeration", "StringReg"):
+        if ntype in ("String", "Enumeration", "StringReg"):
             return self.dev.set_string_feature_value(name, val)
         elif ntype == "Integer":
             return self.dev.set_integer_feature_value(name, int(val))
@@ -112,7 +114,7 @@ class Camera(object):
         elif ntype == "Boolean":
             return self.dev.set_integer_feature_value(name, int(val))
         else:
-            self.logger.warning("Feature type not implemented: ", ntype)
+            self.logger.warning("Feature type not implemented: %s", ntype)
 
     def get_genicam(self):
         """
@@ -139,16 +141,16 @@ class Camera(object):
     def create_buffers(self, nb=10, payload=None):
         if not payload:
             payload = self.cam.get_payload()
-        self.logger.info("Creating {} memory buffers of size {}".format(nb, payload))
-        for i in range(0, nb):
+        self.logger.info("Creating %s memory buffers of size %s", nb, payload)
+        for _ in range(0, nb):
             self.stream.push_buffer(Aravis.Buffer.new_allocate(payload))
 
-    def pop(self, timestamp=False):
+    def pop_frame(self, timestamp=False):
         while True: #loop in python in order to allow interrupt, have the loop in C might hang
             if timestamp:
-                ts, frame = self.try_pop(timestamp)
+                ts, frame = self.try_pop_frame(timestamp)
             else:
-                frame = self.try_pop()
+                frame = self.try_pop_frame()
 
             if frame is None:
                 time.sleep(0.001)
@@ -158,7 +160,7 @@ class Camera(object):
                 else:
                     return frame
 
-    def try_pop(self, timestamp=False):
+    def try_pop_frame(self, timestamp=False):
         """
         return the oldest frame in the aravis buffer
         """
@@ -179,14 +181,13 @@ class Camera(object):
     def _array_from_buffer_address(self, buf):
         if not buf:
             return None
-        if buf.pixel_format in (Aravis.PIXEL_FORMAT_MONO_8,
-                Aravis.PIXEL_FORMAT_BAYER_BG_8):
+        if buf.get_image_pixel_format() in (Aravis.PIXEL_FORMAT_MONO_8, Aravis.PIXEL_FORMAT_BAYER_BG_8):
             INTP = ctypes.POINTER(ctypes.c_uint8)
         else:
             INTP = ctypes.POINTER(ctypes.c_uint16)
-        addr = buf.data
+        addr = buf.get_data()
         ptr = ctypes.cast(addr, INTP)
-        im = np.ctypeslib.as_array(ptr, (buf.height, buf.width))
+        im = np.ctypeslib.as_array(ptr, (buf.get_image_height(), buf.get_image_width()))
         im = im.copy()
         return im
 
@@ -240,6 +241,32 @@ def get_device_ids():
     return l
 
 
+def show_frame(frame):
+    import cv2
+    cv2.imshow("capture", frame)
+    cv2.waitKey(0)
+
+def save_frame(frame, path="frame.png"):
+    print("Saving frame to ", path)
+    np.save(path, frame)
+
+def sfn(cam, path="frame.png"):
+    from PIL import Image
+    cam.start_acquisition()
+    frame = cam.pop_frame()
+    cam.stop_acquisition()
+    im = Image.fromarray(frame)
+    print("Saving image to ", path)
+    im.save(path)
+
+def get_frame(cam):
+    cam.start_acquisition()
+    frame = cam.pop_frame()
+    cam.stop_acquisition()
+    return frame
+
+
+
 
 
 
@@ -268,9 +295,8 @@ if __name__ == "__main__":
         print("PacketSize: ", cam.get_feature("GevSCPSPacketSize"))
 
 
-        from IPython.frontend.terminal.embed import InteractiveShellEmbed
-        ipshell = InteractiveShellEmbed()
-        ipshell(local_ns=locals())
+        from IPython import embed
+        embed()
     finally:
         cam.shutdown()
 

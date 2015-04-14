@@ -22,9 +22,11 @@ if __name__ == "__main__":
         while True:
             count += 1
             print("frame nb: ", count)
-            frame = cam.pop()
+            frame = cam.pop_frame()
+            print("shape: ", frame.shape)
             print(time.time())
-            cv2.imshow("capture", frame)
-            cv2.waitKey(1)
+            if not 0 in frame.shape:
+                cv2.imshow("capture", frame)
+                cv2.waitKey(1)
     finally:
         cam.stop_acquisition()

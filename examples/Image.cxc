@@ -16,7 +16,7 @@ AoiOffsetY	0
 AoiThreshold	120
 ImageModeAoiSelector	1
 NumAois	1
-FramePeriode	40000
+FramePeriode	400
 ExposureTimeAbs	5848
 MultipleSlopeMode	SingleSlope
 NDRMode	Off
