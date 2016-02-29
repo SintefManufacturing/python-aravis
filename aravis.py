@@ -128,7 +128,7 @@ class Camera(object):
         """
         ntype = self.get_feature_type(name)
         if ntype == "Enumeration":
-            return cam.dev.get_available_enumeration_feature_values_as_strings(name)
+            return self.dev.get_available_enumeration_feature_values_as_strings(name)
         else:
             raise AravisException("{} is not an enumeration but a {}".format(name, ntype))
 
