@@ -41,7 +41,7 @@ class Camera(object):
         self.dev = self.cam.get_device()
         self.stream = self.cam.create_stream(None, None)
         if self.stream is None:
-            raise Exception("Error creating buffer")
+            raise AravisException("Error creating buffer")
         self._frame = None
         self._last_payload = 0
 
