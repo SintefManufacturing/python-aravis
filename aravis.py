@@ -169,7 +169,7 @@ class Camera(object):
             frame = self._array_from_buffer_address(buf)
             self.stream.push_buffer(buf)
             if timestamp:
-                return buf.timestamp_ns, frame
+                return buf.get_timestamp(), frame
             else:
                 return frame
         else:
@@ -236,9 +236,9 @@ class Camera(object):
 
 
 def get_device_ids():
+    Aravis.update_device_list()
     n = Aravis.get_n_devices()
-    l = [Aravis.get_device_id(i) for i in range(0, n)]
-    return l
+    return [Aravis.get_device_id(i) for i in range(0, n)]
 
 
 def show_frame(frame):
