@@ -181,7 +181,9 @@ class Camera(object):
     def _array_from_buffer_address(self, buf):
         if not buf:
             return None
-        if buf.get_image_pixel_format() in (Aravis.PIXEL_FORMAT_MONO_8, Aravis.PIXEL_FORMAT_BAYER_BG_8):
+        pixel_format = buf.get_image_pixel_format()
+        bits_per_pixel = pixel_format >> 16 & 0xff
+        if bits_per_pixel == 8:
             INTP = ctypes.POINTER(ctypes.c_uint8)
         else:
             INTP = ctypes.POINTER(ctypes.c_uint16)
