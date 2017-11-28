@@ -21,7 +21,7 @@ if __name__ == "__main__":
     try:
         start = True
         while True:
-            frame = cam.pop()
+            frame = cam.pop_frame()
             plt.clf()
             plt.plot(frame.T)
             if start:
