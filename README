@@ -32,3 +32,9 @@ Next read the other examples and the code
 Rmq: Aravis needs to be compiled with intropsection support.
 It requires at least libgirepository1.0-dev and gobject-introspection packges on ubuntu
 
+User may need to increase max UDP packet size:
+ifconfig etho0 mtu 9000 up
+or/and
+vi /etc/network/interfaces
+add mtu 9000
+
