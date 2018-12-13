@@ -16,8 +16,8 @@ Pythonic interface to the auo-generated aravis bindings.
 Minimal example code:
 
 import aravis
-ids = aravis.get_camera_ids() #List visible cameras
-cam = Camera(ids[0]) #get the first camera
+ids = aravis.get_device_ids() #List visible cameras
+cam = aravis.Camera(ids[0]) #get the first camera
 try:
     cam.start_acquisition_continuous(nb_buffers=2)
     frame = cam.pop_frame()# get next frame from camera
