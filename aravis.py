@@ -231,7 +231,10 @@ class Camera(object):
         self.cam.stop_acquisition()
 
     def shutdown(self):
-        self.logger.warning("It is not necessary to call shutdown in this version of python-aravis")
+	#Delete the objects on shutdown: socket will be closed!
+        del self.stream
+        del self.dev
+        del self.cam
 
 
 
